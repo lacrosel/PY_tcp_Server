@@ -39,7 +39,6 @@ class TCPhandler(socketserver.BaseRequestHandler):
                 temp = msg[:4]
                 print(temp)
                 test = self.func.bytes_to_int(msg[:4])
-                test.
                 print(test)
 
                 # while msg:
