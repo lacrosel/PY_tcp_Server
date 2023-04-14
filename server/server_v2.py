@@ -144,25 +144,20 @@ class TCPhandler(socketserver.BaseRequestHandler):
             while (self.Running):
                 startidx = 0
                 recvdata = self.request.recv(8)  # 접속된 사용자로부터 입력대기
-                if len(recvdata) <= -1:
+                if len(recvdata) <= 0:
                     print("connect error!!")
                     break
-                elif len(recvdata) == 0:
-                    continue
                 # 헤더검출
                 septer1 = int.from_bytes(recvdata[startidx:startidx + 4], "little")
                 startidx += 4
-                septer2 = int.from_bytes(recvdata[startidx:startidx + 4], "little")
-                startidx += 4
-                print("septer1         ", septer1)
-                # print("septer2         ", septer2)
+                datalen = int.from_bytes(recvdata[startidx:startidx + 4], "little")
+                # print("septer1         ", septer1)
 
                 if septer1 == 1:
-                    recv = self.request.recv(512)
-                    datalen = int.from_bytes(recv[0:4], "little")
+                    recv = self.request.recv(8)
+                    # datalen = int.from_bytes(recv[0:4], "little")
                     # startidx += 4
-
-                    totaldata = recv[4:]
+                    totaldata = recv
 
                     while (len(totaldata) < datalen):
                         recved = self.request.recv(datalen - len(totaldata))
@@ -173,11 +168,12 @@ class TCPhandler(socketserver.BaseRequestHandler):
 
                         # numpy 배열을 이미지로 디코딩
                         image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                        self.func.ImagePredict(septer2, self.mp_face_detection, self.mp_drawing, self.model,
+                        self.func.ImagePredict(septer1, self.mp_face_detection, self.mp_drawing, self.model,
                                                self.testlist,
                                                image)
 
                 elif septer1 == 2:
+                    recv = self.request.recv(datalen)
                     self.func.dbsignal = True
                     print("==========================dbdbdbdbdbdb===========================")
 
