@@ -6,6 +6,7 @@ import random
 import copy
 from datetime import datetime
 import os
+
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 sized = 32
 import time
@@ -23,14 +24,13 @@ class functions():
         self.serv = server
         self.dbsignal = True
 
-
-    def DBConnect(self):
+    def DBConnect(self, code):
         conn = pymysql.connect(host="10.10.21.107", user="user", port=3306, password="12345678",
-                                    database="opencv")
+                               database="opencv")
         cursor = conn.cursor()
         now = datetime.now()
         dates = now.strftime('%Y-%m-%d-%H:%M:%S')
-        cursor.execute(f"INSERT INTO opencv.sleep(times) values ('{dates}')")
+        cursor.execute(f"INSERT INTO opencv.sleep(times, code) values ('{dates}',{code})")
         conn.commit()
         conn.close()
 
@@ -47,7 +47,7 @@ class functions():
         result.reverse()
         return result
 
-    def ImagePredict(self, detect, draw, model, datalist, image):
+    def ImagePredict(self, spt, detect, draw, model, datalist, image):
         # self.func.ImagePredict(mp_face_detection, mp_drawing, model, testlist, image)
         with detect.FaceDetection(model_selection=0,
                                   min_detection_confidence=0.5) as face_detection:
@@ -119,7 +119,7 @@ class functions():
 
                                 self.serv.request.send(a + b + c)
                                 if (self.dbsignal):
-                                    self.DBConnect()
+                                    self.DBConnect(spt)
                                     self.dbsignal = False
                             else:
                                 print(" open eye  - ", percent, "%")
@@ -136,14 +136,14 @@ class TCPhandler(socketserver.BaseRequestHandler):
         self.func = functions(self)
         self.mp_face_detection = mp.solutions.face_detection
         self.mp_drawing = mp.solutions.drawing_utils
-        self.model = tf.keras.models.load_model('C:/Users/kiot/model_128_3_15_32_1.h5')
+        self.model = tf.keras.models.load_model('model_128_3_15_32_1.h5')
         self.testlist = []
 
     def handle(self):  # 클라에서 신호 보낼시 자동으로 동작
         try:
             while (self.Running):
                 startidx = 0
-                recvdata = self.request.recv(512)  # 접속된 사용자로부터 입력대기
+                recvdata = self.request.recv(8)  # 접속된 사용자로부터 입력대기
                 if len(recvdata) <= -1:
                     print("connect error!!")
                     break
@@ -154,12 +154,15 @@ class TCPhandler(socketserver.BaseRequestHandler):
                 startidx += 4
                 septer2 = int.from_bytes(recvdata[startidx:startidx + 4], "little")
                 startidx += 4
+                print("septer1         ", septer1)
+                # print("septer2         ", septer2)
 
                 if septer1 == 1:
-                    datalen = int.from_bytes(recvdata[startidx:startidx + 4], "little")
-                    startidx += 4
+                    recv = self.request.recv(512)
+                    datalen = int.from_bytes(recv[0:4], "little")
+                    # startidx += 4
 
-                    totaldata = recvdata[startidx:startidx + datalen]
+                    totaldata = recv[4:]
 
                     while (len(totaldata) < datalen):
                         recved = self.request.recv(datalen - len(totaldata))
@@ -170,7 +173,8 @@ class TCPhandler(socketserver.BaseRequestHandler):
 
                         # numpy 배열을 이미지로 디코딩
                         image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                        self.func.ImagePredict(self.mp_face_detection, self.mp_drawing, self.model, self.testlist,
+                        self.func.ImagePredict(septer2, self.mp_face_detection, self.mp_drawing, self.model,
+                                               self.testlist,
                                                image)
 
                 elif septer1 == 2:
