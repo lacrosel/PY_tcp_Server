@@ -23,6 +23,7 @@ class functions():
     def __init__(self, server):
         self.serv = server
         self.dbsignal = True
+        self.testcount = 0
 
     def DBConnect(self, code):
         conn = pymysql.connect(host="10.10.21.107", user="user", port=3306, password="12345678",
@@ -47,7 +48,7 @@ class functions():
         result.reverse()
         return result
 
-    def ImagePredict(self, spt, detect, draw, model, datalist, image):
+    def ImagePredict(self, spt, detect, count, model, datalist, image):
         # self.func.ImagePredict(mp_face_detection, mp_drawing, model, testlist, image)
         with detect.FaceDetection(model_selection=0,
                                   min_detection_confidence=0.5) as face_detection:
@@ -97,17 +98,19 @@ class functions():
                         predicted_class = np.argmax(predictions)
                         # print('Predicted class:', class_names[predicted_class])
                         if (predicted_class == 0):
-                            datalist.append(predicted_class)
+                            self.serv.testlist.append(0)
                         else:
-                            datalist.append(predicted_class)
-                            datalist.append(predicted_class)
-                        if (len(datalist) > 30):
-                            for i in range(len(datalist) - 30):
-                                datalist.pop(0)
+                            self.serv.testlist.append(1)
+                            self.serv.testlist.append(1)
+                        if (len(self.serv.testlist) > 30):
+                            for i in range(len(self.serv.testlist) - 30):
+                                self.serv.testlist.pop(0)
 
-                        if (len(datalist) == 30):
-                            closenum = datalist.count(0)
-                            percent = closenum / len(datalist) * 100
+                        if (len(self.serv.testlist) == 30):
+                            self.testcount += 1
+                            print("count            ", self.testcount)
+                            closenum = self.serv.testlist.count(0)
+                            percent = closenum / len(self.serv.testlist) * 100
                             if (percent > 80):
                                 print(" close eye  - ", percent, "%")
                                 septer = 1
@@ -137,7 +140,7 @@ class TCPhandler(socketserver.BaseRequestHandler):
         self.mp_face_detection = mp.solutions.face_detection
         self.mp_drawing = mp.solutions.drawing_utils
         self.model = tf.keras.models.load_model('model_128_3_15_32_1.h5')
-        self.testlist = []
+        self.testlist = [1] * 30
 
     def handle(self):  # 클라에서 신호 보낼시 자동으로 동작
         try:
@@ -173,9 +176,12 @@ class TCPhandler(socketserver.BaseRequestHandler):
                                                image)
 
                 elif septer1 == 2:
-                    recv = self.request.recv(datalen)
+                    temp = self.request.recv(datalen)
                     self.func.dbsignal = True
+                    self.testlist = [1] * 30
+
                     print("==========================dbdbdbdbdbdb===========================")
+
 
         except Exception as e:  # 어떤 에러 일지 모르니까 표시만 하고 서버 멈추지는 않도록 처리.
             print("==========================================================================================")

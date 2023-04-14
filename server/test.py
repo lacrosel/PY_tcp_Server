@@ -20,7 +20,7 @@ testdata = "signal"
 datalen = len(testdata)
 print("ddd   ", datalen)
 
-septer = 1
+septer = 392
 
 a = septer.to_bytes(4,'little')
 print(a)
