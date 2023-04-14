@@ -6,7 +6,6 @@ import random
 import copy
 from datetime import datetime
 import os
-
 os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 sized = 32
 import time
@@ -144,8 +143,6 @@ class TCPhandler(socketserver.BaseRequestHandler):
         try:
             while (self.Running):
                 startidx = 0
-                totalrecv = 0
-                recvlen = 0
                 recvdata = self.request.recv(512)  # 접속된 사용자로부터 입력대기
                 if len(recvdata) <= -1:
                     print("connect error!!")
