@@ -35,20 +35,7 @@ class functions():
         conn.commit()
         conn.close()
 
-    def bytes_to_int(self, bytes):
-        result = 0
-        for b in bytes:
-            result = result * 256 + int(b)
-        return result
-
-    def int_to_bytes(self, value, length):
-        result = []
-        for i in range(0, length):
-            result.append(value >> (i * 8) & 0xff)
-        result.reverse()
-        return result
-
-    def ImagePredict(self, spt, detect, count, model, datalist, image):
+    def ImagePredict(self, spt, detect, model, image):
         # self.func.ImagePredict(mp_face_detection, mp_drawing, model, testlist, image)
         with detect.FaceDetection(model_selection=0,
                                   min_detection_confidence=0.5) as face_detection:
@@ -87,16 +74,12 @@ class functions():
 
                     # 이미지의 크기가 유효한지 확인
                     if width > 0 and height > 0:
-                        # 이미지 표시
-                        # cv2.imshow("Cropped face", cropped_face)
                         cropped_face2 = cv2.resize(cropped_face, (32, 32))
-
                         cropped_face3 = np.array(cropped_face2)
                         predictions = model.predict(np.expand_dims(cropped_face3, axis=0))
                         # # 예측 결과를 출력합니다.
                         class_names = ['close eyes', 'open eyes']
                         predicted_class = np.argmax(predictions)
-                        # print('Predicted class:', class_names[predicted_class])
                         if (predicted_class == 0):
                             self.serv.testlist.append(0)
                         else:
@@ -110,22 +93,27 @@ class functions():
                             self.testcount += 1
                             print("count            ", self.testcount)
                             closenum = self.serv.testlist.count(0)
-                            percent = closenum / len(self.serv.testlist) * 100
-                            if (percent > 80):
-                                print(" close eye  - ", percent, "%")
+                            #30 프레임 중 % 비율 확인
+                            sleep_percent = closenum / len(self.serv.testlist) * 100
+                            if (sleep_percent > 80):
+                                print(" close eye  - ", percent, "%  -  ",predicted_class)
+                                #이미지 데이터 식별자 1
                                 septer = 1
-                                a = septer.to_bytes(4, 'little')
+                                #little endian 으로 바이트변환
+                                send_sept = septer.to_bytes(4, 'little')
                                 signal = "alert"
-                                datalen = len(signal)
-                                b = datalen.to_bytes(4, 'little')
-                                c = bytearray(signal, "utf-8")
+                                send_data = signal.encode()
+                                datalen = len(send_data)
+                                #길이 -> 바이트 변환
+                                send_len = datalen.to_bytes(4, 'little')
 
-                                self.serv.request.send(a + b + c)
+
+                                self.serv.request.send(send_sept + send_len + send_data)
                                 if (self.dbsignal):
                                     self.DBConnect(spt)
                                     self.dbsignal = False
                             else:
-                                print(" open eye  - ", percent, "%")
+                                print(" open eye  - ", percent, "%  -  ",predicted_class)
 
 
 lock = threading.Lock()  # lock 선언
@@ -171,9 +159,7 @@ class TCPhandler(socketserver.BaseRequestHandler):
 
                         # numpy 배열을 이미지로 디코딩
                         image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-                        self.func.ImagePredict(septer1, self.mp_face_detection, self.mp_drawing, self.model,
-                                               self.testlist,
-                                               image)
+                        self.func.ImagePredict(septer1, self.mp_face_detection, self.model, image)
 
                 elif septer1 == 2:
                     temp = self.request.recv(datalen)
